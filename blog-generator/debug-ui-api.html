@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blog Generator API Debug Tool</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #1a1a1a; color: white; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .section { background: #2a2a2a; padding: 20px; margin: 10px 0; border-radius: 8px; }
+        .error { color: #ff6b6b; background: #441111; padding: 10px; border-radius: 4px; margin: 10px 0; }
+        .success { color: #51cf66; background: #114411; padding: 10px; border-radius: 4px; margin: 10px 0; }
+        .warning { color: #ffd43b; background: #444411; padding: 10px; border-radius: 4px; margin: 10px 0; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin: 5px; }
+        button:hover { background: #0056b3; }
+        textarea, input { width: 100%; padding: 8px; margin: 5px 0; background: #333; color: white; border: 1px solid #555; border-radius: 4px; }
+        pre { background: #333; padding: 10px; border-radius: 4px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Blog Generator API Debug Tool</h1>
+        
+        <div class="section">
+            <h2>1. API Configuration</h2>
+            <label>API Base URL:</label>
+            <input type="text" id="apiUrl" value="http://localhost:8000">
+            <button onclick="testConnection()">Test Connection</button>
+            <div id="connectionResult"></div>
+        </div>
+
+        <div class="section">
+            <h2>2. Health Check</h2>
+            <button onclick="checkHealth()">Check API Health</button>
+            <div id="healthResult"></div>
+        </div>
+
+        <div class="section">
+            <h2>3. Test Blog Generation</h2>
+            <label>Topic:</label>
+            <input type="text" id="testTopic" value="AI Testing" placeholder="Enter test topic">
+            <button onclick="testGeneration()">Start Test Generation</button>
+            <div id="generationResult"></div>
+        </div>
+
+        <div class="section">
+            <h2>4. CORS Test</h2>
+            <button onclick="testCors()">Test CORS Headers</button>
+            <div id="corsResult"></div>
+        </div>
+
+        <div class="section">
+            <h2>5. Network Analysis</h2>
+            <button onclick="analyzeNetwork()">Analyze Network</button>
+            <div id="networkResult"></div>
+        </div>
+    </div>
+
+    <script>
+        let apiBaseUrl = 'http://localhost:8000';
+        
+        function updateApiUrl() {
+            apiBaseUrl = document.getElementById('apiUrl').value;
+        }
+        
+        function log(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : '';
+            element.innerHTML += `<div class="${className}">${message}</div>`;
+        }
+        
+        function clearLog(elementId) {
+            document.getElementById(elementId).innerHTML = '';
+        }
+        
+        async function testConnection() {
+            updateApiUrl();
+            clearLog('connectionResult');
+            log('connectionResult', '🔄 Testing connection...');
+            
+            try {
+                const response = await fetch(`${apiBaseUrl}/health`);
+                if (response.ok) {
+                    log('connectionResult', '✅ Connection successful!', 'success');
+                    log('connectionResult', `Status: ${response.status}`);
+                } else {
+                    log('connectionResult', `❌ Connection failed with status: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                log('connectionResult', `❌ Connection failed: ${error.message}`, 'error');
+                if (error.message.includes('CORS')) {
+                    log('connectionResult', '💡 This looks like a CORS issue!', 'warning');
+                }
+            }
+        }
+        
+        async function checkHealth() {
+            updateApiUrl();
+            clearLog('healthResult');
+            log('healthResult', '🔄 Checking health...');
+            
+            try {
+                const response = await fetch(`${apiBaseUrl}/health`);
+                const data = await response.json();
+                log('healthResult', '✅ Health check successful!', 'success');
+                log('healthResult', `<pre>${JSON.stringify(data, null, 2)}</pre>`);
+            } catch (error) {
+                log('healthResult', `❌ Health check failed: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testGeneration() {
+            updateApiUrl();
+            clearLog('generationResult');
+            const topic = document.getElementById('testTopic').value;
+            
+            if (!topic.trim()) {
+                log('generationResult', '❌ Please enter a topic', 'error');
+                return;
+            }
+            
+            log('generationResult', '🔄 Starting generation test...');
+            
+            try {
+                // Test the generation endpoint
+                const response = await fetch(`${apiBaseUrl}/generate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        topic: topic,
+                        word_count: 500,
+                        tone: 'conversational',
+                        paper_count: 3,
+                        include_faq: false,
+                        include_statistics: false,
+                        include_examples: false
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log('generationResult', '✅ Generation started successfully!', 'success');
+                    log('generationResult', `Session ID: ${data.session_id}`);
+                    
+                    // Test status endpoint
+                    setTimeout(() => checkGenerationStatus(data.session_id), 2000);
+                } else {
+                    const errorText = await response.text();
+                    log('generationResult', `❌ Generation failed: ${response.status}`, 'error');
+                    log('generationResult', `Error: ${errorText}`);
+                }
+            } catch (error) {
+                log('generationResult', `❌ Generation request failed: ${error.message}`, 'error');
+            }
+        }
+        
+        async function checkGenerationStatus(sessionId) {
+            try {
+                const response = await fetch(`${apiBaseUrl}/status/${sessionId}`);
+                const data = await response.json();
+                log('generationResult', `📊 Status: ${data.status}`);
+                
+                if (data.status === 'running') {
+                    log('generationResult', `Stage: ${data.stage}, Progress: ${JSON.stringify(data.progress)}`);
+                }
+            } catch (error) {
+                log('generationResult', `❌ Status check failed: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testCors() {
+            updateApiUrl();
+            clearLog('corsResult');
+            log('corsResult', '🔄 Testing CORS...');
+            
+            try {
+                const response = await fetch(`${apiBaseUrl}/health`, {
+                    method: 'OPTIONS'
+                });
+                
+                const corsHeaders = {
+                    'Access-Control-Allow-Origin': response.headers.get('Access-Control-Allow-Origin'),
+                    'Access-Control-Allow-Methods': response.headers.get('Access-Control-Allow-Methods'),
+                    'Access-Control-Allow-Headers': response.headers.get('Access-Control-Allow-Headers'),
+                };
+                
+                log('corsResult', '✅ CORS preflight successful!', 'success');
+                log('corsResult', `<pre>${JSON.stringify(corsHeaders, null, 2)}</pre>`);
+                
+                if (!corsHeaders['Access-Control-Allow-Origin']) {
+                    log('corsResult', '⚠️ No CORS headers found - this might cause issues!', 'warning');
+                }
+                
+            } catch (error) {
+                log('corsResult', `❌ CORS test failed: ${error.message}`, 'error');
+            }
+        }
+        
+        async function analyzeNetwork() {
+            updateApiUrl();
+            clearLog('networkResult');
+            log('networkResult', '🔄 Analyzing network...');
+            
+            const checks = [
+                { name: 'API Health', url: `${apiBaseUrl}/health` },
+                { name: 'API Docs', url: `${apiBaseUrl}/docs` },
+                { name: 'OpenAPI Schema', url: `${apiBaseUrl}/openapi.json` }
+            ];
+            
+            for (const check of checks) {
+                try {
+                    const startTime = Date.now();
+                    const response = await fetch(check.url);
+                    const endTime = Date.now();
+                    const responseTime = endTime - startTime;
+                    
+                    if (response.ok) {
+                        log('networkResult', `✅ ${check.name}: OK (${responseTime}ms)`, 'success');
+                    } else {
+                        log('networkResult', `❌ ${check.name}: ${response.status}`, 'error');
+                    }
+                } catch (error) {
+                    log('networkResult', `❌ ${check.name}: ${error.message}`, 'error');
+                }
+            }
+            
+            // Check if running on different ports
+            log('networkResult', '📊 Port Analysis:');
+            log('networkResult', '- API should be on: http://localhost:8000');
+            log('networkResult', '- Frontend should be on: http://localhost:3000');
+            log('networkResult', `- Current API URL: ${apiBaseUrl}`);
+        }
+        
+        // Auto-run basic tests on load
+        window.onload = function() {
+            testConnection();
+        };
+    </script>
+</body>
+</html>

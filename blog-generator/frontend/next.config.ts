@@ -1,7 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  output: 'standalone',
+  experimental: {
+    outputFileTracingRoot: undefined,
+  },
+  reactStrictMode: false, // Reduces hydration warnings in development
+  swcMinify: true,
 };
 
 export default nextConfig;

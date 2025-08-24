@@ -1,0 +1,46 @@
+# Development Docker Compose - Hot reload enabled
+version: '3.8'
+
+services:
+  # FastAPI Backend Services (Development)
+  api:
+    build:
+      context: ./services
+      dockerfile: Dockerfile
+    container_name: blog-generator-api-dev
+    ports:
+      - "8000:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - PYTHONPATH=/app
+    volumes:
+      - ./services:/app
+      - ./services/.env:/app/.env:ro
+    command: uvicorn api_gateway:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - blog-generator-network
+
+  # Next.js Frontend (Development)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: blog-generator-frontend-dev
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev
+    depends_on:
+      - api
+    networks:
+      - blog-generator-network
+
+networks:
+  blog-generator-network:
+    driver: bridge
