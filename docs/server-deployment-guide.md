@@ -5,7 +5,7 @@ This guide will walk you through deploying the Intelligent Hub application to yo
 ## Server Information
 - **Server IP**: 34.129.252.73
 - **SSH Access**: `ssh -i ~/.ssh/my-gce-key soroushziaee@34.129.252.73`
-- **Domain**: intelligence.myfastmedical.ca
+- **Domain**: intelligent.myfastmedical.ca
 - **Protection**: Nginx Basic Authentication (username/password)
 
 ## Prerequisites Checklist
@@ -64,8 +64,8 @@ nginx -v
 ### 2.1 Verify DNS Configuration
 ```bash
 # Check if domain points to your server
-nslookup intelligence.myfastmedical.ca
-dig intelligence.myfastmedical.ca
+nslookup intelligent.myfastmedical.ca
+dig intelligent.myfastmedical.ca
 
 # Should return your server IP: 34.129.252.73
 ```
@@ -77,7 +77,7 @@ ping intelligent.myfastmedical.ca
 
 **Note**: If DNS is not configured, update your DNS provider settings:
 - **Type**: A Record
-- **Name**: intelligence (or @ for root domain)
+- **Name**: intelligent (or @ for root domain)
 - **Value**: 34.129.252.73
 - **TTL**: 300 (5 minutes)
 
@@ -176,7 +176,7 @@ services:
 sudo systemctl stop nginx
 
 # Get certificate using certbot
-sudo certbot certonly --standalone -d intelligence.myfastmedical.ca
+sudo certbot certonly --standalone -d intelligent.myfastmedical.ca
 
 # Start nginx again
 sudo systemctl start nginx
@@ -200,7 +200,7 @@ sudo htpasswd -c /etc/nginx/.htpasswd admin
 
 ### 6.2 Create Nginx Configuration
 ```bash
-sudo nano /etc/nginx/sites-available/intelligence.myfastmedical.ca
+sudo nano /etc/nginx/sites-available/intelligent.myfastmedical.ca
 ```
 
 **Add the following configuration:**
@@ -208,18 +208,18 @@ sudo nano /etc/nginx/sites-available/intelligence.myfastmedical.ca
 # HTTP redirect to HTTPS
 server {
     listen 80;
-    server_name intelligence.myfastmedical.ca;
+    server_name intelligent.myfastmedical.ca;
     return 301 https://$host$request_uri;
 }
 
 # HTTPS configuration
 server {
     listen 443 ssl http2;
-    server_name intelligence.myfastmedical.ca;
+    server_name intelligent.myfastmedical.ca;
 
     # SSL Configuration
-    ssl_certificate /etc/letsencrypt/live/intelligence.myfastmedical.ca/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/intelligence.myfastmedical.ca/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/intelligent.myfastmedical.ca/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/intelligent.myfastmedical.ca/privkey.pem;
     
     # SSL Security Settings
     ssl_protocols TLSv1.2 TLSv1.3;
@@ -296,7 +296,7 @@ server {
 ### 6.3 Enable Site Configuration
 ```bash
 # Enable the site
-sudo ln -s /etc/nginx/sites-available/intelligence.myfastmedical.ca /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/intelligent.myfastmedical.ca /etc/nginx/sites-enabled/
 
 # Remove default nginx site
 sudo rm -f /etc/nginx/sites-enabled/default
@@ -422,7 +422,7 @@ mkdir -p $BACKUP_DIR
 tar -czf $BACKUP_DIR/intelligent-hub-$DATE.tar.gz /opt/intelligent-hub
 
 # Backup nginx configuration
-cp /etc/nginx/sites-available/intelligence.myfastmedical.ca $BACKUP_DIR/nginx-config-$DATE.conf
+cp /etc/nginx/sites-available/intelligent.myfastmedical.ca $BACKUP_DIR/nginx-config-$DATE.conf
 
 # Backup password file
 cp /etc/nginx/.htpasswd $BACKUP_DIR/htpasswd-$DATE
@@ -445,14 +445,14 @@ sudo /opt/backup-intelligent-hub.sh
 ### 11.1 Test Domain Access
 ```bash
 # Test HTTP redirect to HTTPS
-curl -I http://intelligence.myfastmedical.ca
+curl -I http://intelligent.myfastmedical.ca
 
 # Test HTTPS access (should prompt for authentication)
-curl -I https://intelligence.myfastmedical.ca
+curl -I https://intelligent.myfastmedical.ca
 ```
 
 ### 11.2 Browser Testing Checklist
-- [ ] Visit https://intelligence.myfastmedical.ca
+- [ ] Visit https://intelligent.myfastmedical.ca
 - [ ] Verify SSL certificate is valid (green lock)
 - [ ] Confirm authentication prompt appears
 - [ ] Login with created username/password
@@ -513,7 +513,7 @@ docker compose up -d --build
 sudo certbot renew
 
 # Check certificate files
-sudo ls -la /etc/letsencrypt/live/intelligence.myfastmedical.ca/
+sudo ls -la /etc/letsencrypt/live/intelligent.myfastmedical.ca/
 ```
 
 ### Issue 3: Authentication Not Working
@@ -587,7 +587,7 @@ Your Intelligent Hub application is now deployed and secured with:
 ✅ **System service** for automatic startup  
 ✅ **Backup system** for data protection  
 
-**Access URL**: https://intelligence.myfastmedical.ca
+**Access URL**: https://intelligent.myfastmedical.ca
 
 **Default Login**: Username and password you set in Step 6.1
 
