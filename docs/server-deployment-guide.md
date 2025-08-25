@@ -59,9 +59,123 @@ docker compose version
 nginx -v
 ```
 
-## Step 2: Domain and DNS Configuration
+## Step 2: Current Server Analysis and Nginx Check
 
-### 2.1 Verify DNS Configuration
+### 2.1 Analyze Current Nginx Configuration
+Before making any changes, let's analyze the current state of nginx on the server:
+
+```bash
+# Check if nginx is already running
+sudo systemctl status nginx
+
+# Check current nginx configuration
+sudo nginx -t
+
+# List current enabled sites
+ls -la /etc/nginx/sites-enabled/
+
+# Check current nginx configuration files
+ls -la /etc/nginx/sites-available/
+
+# View default nginx configuration (if exists)
+cat /etc/nginx/sites-available/default
+
+# Check if nginx is listening on ports 80/443
+sudo netstat -tulpn | grep nginx
+sudo ss -tulpn | grep nginx
+
+# Check current nginx processes
+ps aux | grep nginx
+
+# View nginx access and error logs
+sudo tail -20 /var/log/nginx/access.log
+sudo tail -20 /var/log/nginx/error.log
+```
+
+### 2.2 Backup Existing Nginx Configuration
+```bash
+# Create backup directory
+sudo mkdir -p /opt/nginx-backup/$(date +%Y%m%d_%H%M%S)
+BACKUP_DIR="/opt/nginx-backup/$(date +%Y%m%d_%H%M%S)"
+
+# Backup current nginx configuration
+sudo cp -r /etc/nginx/ $BACKUP_DIR/nginx-config/
+
+# Backup current sites
+sudo cp /etc/nginx/sites-available/* $BACKUP_DIR/ 2>/dev/null || echo "No sites to backup"
+sudo cp /etc/nginx/sites-enabled/* $BACKUP_DIR/ 2>/dev/null || echo "No enabled sites to backup"
+
+# List backed up files
+ls -la $BACKUP_DIR/
+echo "Nginx configuration backed up to: $BACKUP_DIR"
+```
+
+### 2.3 Analyze Current Web Services
+```bash
+# Check what's currently running on web ports
+sudo lsof -i :80
+sudo lsof -i :443
+sudo lsof -i :3000
+sudo lsof -i :3001
+sudo lsof -i :8000
+
+# Check if any web servers are running
+sudo systemctl status apache2 2>/dev/null || echo "Apache2 not installed/running"
+sudo systemctl status nginx 2>/dev/null || echo "Nginx not running"
+
+# Check current firewall rules
+sudo ufw status verbose
+```
+
+### 2.4 Document Current Configuration
+```bash
+# Create analysis report
+echo "=== Current Server Web Configuration Analysis ===" > /tmp/server-analysis.txt
+echo "Date: $(date)" >> /tmp/server-analysis.txt
+echo "" >> /tmp/server-analysis.txt
+
+echo "--- Nginx Status ---" >> /tmp/server-analysis.txt
+sudo systemctl status nginx >> /tmp/server-analysis.txt 2>&1
+echo "" >> /tmp/server-analysis.txt
+
+echo "--- Current Sites Enabled ---" >> /tmp/server-analysis.txt
+ls -la /etc/nginx/sites-enabled/ >> /tmp/server-analysis.txt 2>&1
+echo "" >> /tmp/server-analysis.txt
+
+echo "--- Port Usage ---" >> /tmp/server-analysis.txt
+sudo netstat -tulpn | grep -E ':(80|443|3000|3001|8000) ' >> /tmp/server-analysis.txt 2>&1
+echo "" >> /tmp/server-analysis.txt
+
+echo "--- Firewall Status ---" >> /tmp/server-analysis.txt
+sudo ufw status verbose >> /tmp/server-analysis.txt 2>&1
+
+# Display the analysis
+cat /tmp/server-analysis.txt
+echo ""
+echo "Analysis saved to: /tmp/server-analysis.txt"
+```
+
+### 2.5 Plan Configuration Changes
+Based on the analysis above, determine the approach:
+
+**If nginx is running with existing sites:**
+- ✅ Backup configurations (already done in step 2.2)
+- ✅ Plan to disable/modify conflicting configurations
+- ✅ Ensure our domain doesn't conflict with existing setups
+
+**If nginx is fresh/default:**
+- ✅ Proceed with standard configuration
+- ✅ Remove default site if present
+
+**If ports are in use by other services:**
+- ⚠️ Identify conflicting services
+- ⚠️ Plan port resolution or service migration
+
+**Decision Point**: Review the analysis output and proceed accordingly. If there are conflicts, document them before proceeding.
+
+## Step 3: Domain and DNS Configuration
+
+### 3.1 Verify DNS Configuration
 ```bash
 # Check if domain points to your server
 nslookup intelligent.myfastmedical.ca
@@ -70,7 +184,7 @@ dig intelligent.myfastmedical.ca
 # Should return your server IP: 34.129.252.73
 ```
 
-### 2.2 Test Domain Resolution
+### 3.2 Test Domain Resolution
 ```bash
 ping intelligent.myfastmedical.ca
 ```
@@ -81,16 +195,16 @@ ping intelligent.myfastmedical.ca
 - **Value**: 34.129.252.73
 - **TTL**: 300 (5 minutes)
 
-## Step 3: Prepare Application Files
+## Step 4: Prepare Application Files
 
-### 3.1 Create Application Directory
+### 4.1 Create Application Directory
 ```bash
 sudo mkdir -p /opt/intelligent-hub
 sudo chown $USER:$USER /opt/intelligent-hub
 cd /opt/intelligent-hub
 ```
 
-### 3.2 Transfer Files from Local Machine
+### 4.2 Transfer Files from Local Machine
 
 **On your local machine:**
 ```bash
@@ -116,9 +230,9 @@ tar -xzf intelligent-hub-deploy.tar.gz
 ls -la  # Verify files are extracted
 ```
 
-## Step 4: Environment Configuration
+## Step 5: Environment Configuration
 
-### 4.1 Create Production Environment File
+### 5.1 Create Production Environment File
 ```bash
 cd /opt/intelligent-hub/main-hub
 cp .env.example .env
@@ -144,7 +258,7 @@ BLOG_GENERATOR_API_PORT=8000
 NODE_ENV=production
 ```
 
-### 4.2 Create Production Docker Compose Override
+### 5.2 Create Production Docker Compose Override
 ```bash
 nano docker-compose.override.yml
 ```
@@ -168,9 +282,9 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
 ```
 
-## Step 5: SSL Certificate Setup
+## Step 6: SSL Certificate Setup
 
-### 5.1 Obtain SSL Certificate
+### 6.1 Obtain SSL Certificate
 ```bash
 # Stop nginx temporarily
 sudo systemctl stop nginx
@@ -182,14 +296,14 @@ sudo certbot certonly --standalone -d intelligent.myfastmedical.ca
 sudo systemctl start nginx
 ```
 
-### 5.2 Verify Certificate
+### 6.2 Verify Certificate
 ```bash
 sudo certbot certificates
 ```
 
-## Step 6: Nginx Configuration with Authentication
+## Step 7: Nginx Configuration with Authentication
 
-### 6.1 Create Password File
+### 7.1 Create Password File
 ```bash
 # Create htpasswd file with username/password
 sudo htpasswd -c /etc/nginx/.htpasswd admin
@@ -198,7 +312,7 @@ sudo htpasswd -c /etc/nginx/.htpasswd admin
 # Remember this username and password for accessing the site
 ```
 
-### 6.2 Create Nginx Configuration
+### 7.2 Create Nginx Configuration
 ```bash
 sudo nano /etc/nginx/sites-available/intelligent.myfastmedical.ca
 ```
@@ -293,7 +407,7 @@ server {
 }
 ```
 
-### 6.3 Enable Site Configuration
+### 7.3 Enable Site Configuration
 ```bash
 # Enable the site
 sudo ln -s /etc/nginx/sites-available/intelligent.myfastmedical.ca /etc/nginx/sites-enabled/
@@ -308,9 +422,9 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-## Step 7: Deploy Application
+## Step 8: Deploy Application
 
-### 7.1 Build and Start Services
+### 8.1 Build and Start Services
 ```bash
 cd /opt/intelligent-hub/main-hub
 
@@ -321,7 +435,7 @@ docker compose up -d --build
 docker compose ps
 ```
 
-### 7.2 View Logs (if needed)
+### 8.2 View Logs (if needed)
 ```bash
 # View all service logs
 docker compose logs -f
@@ -331,9 +445,9 @@ docker compose logs -f hub-frontend
 docker compose logs -f blog-generator-api
 ```
 
-## Step 8: Firewall Configuration
+## Step 9: Firewall Configuration
 
-### 8.1 Configure UFW Firewall
+### 9.1 Configure UFW Firewall
 ```bash
 # Enable UFW
 sudo ufw enable
@@ -349,7 +463,7 @@ sudo ufw allow 443/tcp
 sudo ufw status
 ```
 
-### 8.2 Verify Ports are Not Directly Accessible
+### 9.2 Verify Ports are Not Directly Accessible
 ```bash
 # These should be blocked from external access
 sudo ufw deny 3000/tcp
@@ -357,9 +471,9 @@ sudo ufw deny 3001/tcp
 sudo ufw deny 8000/tcp
 ```
 
-## Step 9: SSL Certificate Auto-Renewal
+## Step 10: SSL Certificate Auto-Renewal
 
-### 9.1 Setup Automatic Renewal
+### 10.1 Setup Automatic Renewal
 ```bash
 # Test renewal process
 sudo certbot renew --dry-run
@@ -371,9 +485,9 @@ sudo crontab -e
 0 12 * * * /usr/bin/certbot renew --quiet
 ```
 
-## Step 10: Monitoring and Maintenance
+## Step 11: Monitoring and Maintenance
 
-### 10.1 Create System Service for Application
+### 11.1 Create System Service for Application
 ```bash
 sudo nano /etc/systemd/system/intelligent-hub.service
 ```
@@ -397,14 +511,14 @@ TimeoutStartSec=0
 WantedBy=multi-user.target
 ```
 
-### 10.2 Enable and Start Service
+### 11.2 Enable and Start Service
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable intelligent-hub.service
 sudo systemctl start intelligent-hub.service
 ```
 
-### 10.3 Create Backup Script
+### 11.3 Create Backup Script
 ```bash
 sudo nano /opt/backup-intelligent-hub.sh
 ```
@@ -440,9 +554,9 @@ sudo chmod +x /opt/backup-intelligent-hub.sh
 sudo /opt/backup-intelligent-hub.sh
 ```
 
-## Step 11: Testing and Verification
+## Step 12: Testing and Verification
 
-### 11.1 Test Domain Access
+### 12.1 Test Domain Access
 ```bash
 # Test HTTP redirect to HTTPS
 curl -I http://intelligent.myfastmedical.ca
@@ -451,7 +565,7 @@ curl -I http://intelligent.myfastmedical.ca
 curl -I https://intelligent.myfastmedical.ca
 ```
 
-### 11.2 Browser Testing Checklist
+### 12.2 Browser Testing Checklist
 - [ ] Visit https://intelligent.myfastmedical.ca
 - [ ] Verify SSL certificate is valid (green lock)
 - [ ] Confirm authentication prompt appears
@@ -461,9 +575,9 @@ curl -I https://intelligent.myfastmedical.ca
 - [ ] Check blog generator access
 - [ ] Verify health monitoring works
 
-## Step 12: Security Hardening
+## Step 13: Security Hardening
 
-### 12.1 Additional Security Measures
+### 13.1 Additional Security Measures
 ```bash
 # Disable SSH password authentication (key-only)
 sudo nano /etc/ssh/sshd_config
@@ -480,7 +594,7 @@ sudo apt install fail2ban -y
 sudo systemctl enable fail2ban
 ```
 
-### 12.2 Monitor Application
+### 13.2 Monitor Application
 ```bash
 # Check service status
 sudo systemctl status intelligent-hub.service
