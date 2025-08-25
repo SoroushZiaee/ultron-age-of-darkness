@@ -1,0 +1,53 @@
+services:
+  hub-frontend:
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+    networks:
+      - intelligent-hub
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+      interval: 30s
+
+  # Include blog-generator service
+  blog-generator-frontend:
+    build:
+      context: ../blog-generator/frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3000"
+    networks:
+      - intelligent-hub
+    restart: unless-stopped
+
+  blog-generator-api:
+    build:
+      context: ../blog-generator/services
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - ../blog-generator/services/outputs:/app/outputs
+    networks:
+      - intelligent-hub
+    restart: unless-stopped
+    depends_on:
+      - hub-frontend
+
+networks:
+  intelligent-hub:
+    driver: bridge
+
+volumes:
+  blog-outputs:
+    driver: local

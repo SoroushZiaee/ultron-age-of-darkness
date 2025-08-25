@@ -1,0 +1,49 @@
+services:
+  hub-frontend-dev:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - intelligent-hub-dev
+    restart: unless-stopped
+
+  # Include blog-generator service in dev mode
+  blog-generator-frontend-dev:
+    build:
+      context: ../blog-generator/frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3001:3000"
+    volumes:
+      - ../blog-generator/frontend:/app
+      - /app/node_modules
+    networks:
+      - intelligent-hub-dev
+    restart: unless-stopped
+
+  blog-generator-api-dev:
+    build:
+      context: ../blog-generator/services
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - ../blog-generator/services:/app
+      - ../blog-generator/services/outputs:/app/outputs
+    networks:
+      - intelligent-hub-dev
+    restart: unless-stopped
+    command: ["uvicorn", "api_gateway:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+networks:
+  intelligent-hub-dev:
+    driver: bridge
